@@ -18,6 +18,10 @@ namespace Mini_PL
                     token = scanner.GetNextToken();
                     Console.WriteLine("kind: " + token.Kind.ToString() + ", \t\tlexeme: " + token.Lexeme);
                 } while (token.Kind != TokenKind.EndOfSource);
+                scanner.Reset();
+
+                Parser parser = new Parser(scanner);
+                parser.Parse();
             }
         }
     }

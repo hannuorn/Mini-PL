@@ -30,6 +30,12 @@ namespace Mini_PL
             Source = System.IO.File.ReadAllLines(fileName);
         }
 
+        public void Reset()
+        {
+            Row = 0;
+            Column = 0;
+        }
+
         public Token GetNextToken()
         {
             SkipWhitespaceAndComments();
@@ -121,7 +127,7 @@ namespace Mini_PL
                     numberString.Insert(numberString.Length, CurrentCharacter().ToString());
                     SkipCharacter();
                 }
-                return new Token(TokenKind.Literal_int, numberString, row, column);
+                return new Token(TokenKind.int_Literal, numberString, row, column);
             }
 
             if (IsIdentifierCharacter(c))
@@ -145,7 +151,7 @@ namespace Mini_PL
                     int length = endOfString - Column + 1;
                     string stringLiteral = Source[Row].Substring(Column, length);
                     SkipCharacters(length);
-                    return new Token(TokenKind.Literal_string, stringLiteral, row, column);
+                    return new Token(TokenKind.string_Literal, stringLiteral, row, column);
                 } else
                 {
                     // Error: string literal does not terminate before end-of-line.
@@ -153,7 +159,7 @@ namespace Mini_PL
                     int length = Source[Row].Length - Column + 1;
                     string stringLiteral = Source[Row].Substring(Column, length - 1) + "\"";
                     SkipCharacters(length - 1);
-                    return new Token(TokenKind.Literal_string, stringLiteral, row, column);
+                    return new Token(TokenKind.string_Literal, stringLiteral, row, column);
                 }
             }
             return null;
@@ -162,19 +168,19 @@ namespace Mini_PL
         private TokenKind WordToTokenKind(string word)
         {
             TokenKind kind;
-            if      (word.Equals("false"))  kind = TokenKind.Literal_bool_false;
-            else if (word.Equals("true"))   kind = TokenKind.Literal_bool_true;
-            else if (word.Equals("var"))    kind = TokenKind.Keyword_var;
-            else if (word.Equals("for"))    kind = TokenKind.Keyword_for;
-            else if (word.Equals("end"))    kind = TokenKind.Keyword_end;
-            else if (word.Equals("in"))     kind = TokenKind.Keyword_in;
-            else if (word.Equals("do"))     kind = TokenKind.Keyword_do;
-            else if (word.Equals("read"))   kind = TokenKind.Keyword_read;
-            else if (word.Equals("print"))  kind = TokenKind.Keyword_print;
-            else if (word.Equals("int"))    kind = TokenKind.Keyword_int;
-            else if (word.Equals("string")) kind = TokenKind.Keyword_string;
-            else if (word.Equals("bool"))   kind = TokenKind.Keyword_bool;
-            else if (word.Equals("assert")) kind = TokenKind.Keyword_assert;
+            if      (word.Equals("false"))  kind = TokenKind.bool_Literal;
+            else if (word.Equals("true"))   kind = TokenKind.bool_Literal;
+            else if (word.Equals("var"))    kind = TokenKind.var_Keyword;
+            else if (word.Equals("for"))    kind = TokenKind.for_Keyword;
+            else if (word.Equals("end"))    kind = TokenKind.end_Keyword;
+            else if (word.Equals("in"))     kind = TokenKind.in_Keyword;
+            else if (word.Equals("do"))     kind = TokenKind.do_Keyword;
+            else if (word.Equals("read"))   kind = TokenKind.read_Keyword;
+            else if (word.Equals("print"))  kind = TokenKind.print_Keyword;
+            else if (word.Equals("int"))    kind = TokenKind.int_Keyword;
+            else if (word.Equals("string")) kind = TokenKind.string_Keyword;
+            else if (word.Equals("bool"))   kind = TokenKind.bool_Keyword;
+            else if (word.Equals("assert")) kind = TokenKind.assert_Keyword;
             else                            kind = TokenKind.Identifier;
             return kind;
         }
