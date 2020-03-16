@@ -4,26 +4,27 @@ using System.Text;
 
 namespace Mini_PL
 {
-    class AST_read_statement : AST_statement
+    class AST_program : ASTNode
     {
-        private AST_identifier identifier;
+        private AST_statement_list statement_list;
 
-        public AST_identifier Identifier
+        public AST_statement_list StatementList
         {
             get
             {
-                return this.identifier;
+                return this.statement_list;
             }
         }
 
-        public AST_read_statement(AST_identifier identifier)
+        public AST_program(AST_statement_list statement_list)
         {
-            this.identifier = identifier;
+            this.statement_list = statement_list;
         }
 
         override public void Accept(ASTVisitor visitor)
         {
             visitor.Visit(this);
         }
+
     }
 }

@@ -6,5 +6,6 @@ namespace Mini_PL
 {
     abstract class ASTNode
     {
+        public abstract void Accept(ASTVisitor visitor);
     }
 }

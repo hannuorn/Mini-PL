@@ -124,7 +124,7 @@ namespace Mini_PL
                 SkipCharacter();
                 while (IsNumber(CurrentCharacter()))
                 {
-                    numberString.Insert(numberString.Length, CurrentCharacter().ToString());
+                    numberString = numberString.Insert(numberString.Length, CurrentCharacter().ToString());
                     SkipCharacter();
                 }
                 return new Token(TokenKind.int_Literal, numberString, row, column);
@@ -148,9 +148,9 @@ namespace Mini_PL
                 int endOfString = Source[Row].IndexOf('"', Column + 1);
                 if (endOfString >= 0)
                 {
-                    int length = endOfString - Column + 1;
-                    string stringLiteral = Source[Row].Substring(Column, length);
-                    SkipCharacters(length);
+                    int length = endOfString - Column - 1;
+                    string stringLiteral = Source[Row].Substring(Column + 1, length);
+                    SkipCharacters(length + 2);
                     return new Token(TokenKind.string_Literal, stringLiteral, row, column);
                 } else
                 {

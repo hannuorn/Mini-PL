@@ -9,6 +9,7 @@ namespace Mini_PL
     class Parser
     {
         private Scanner scanner;
+        private AST_program program;
 
         // This is the 'one token buffer' required for LL (1) parsing.
         private Token lastReadToken = null;
@@ -25,9 +26,13 @@ namespace Mini_PL
 
         public void Parse()
         {
-            Parse_program();
+            this.program = Parse_program();
         }
 
+        public AST_program Get_program()
+        {
+            return this.program;
+        }
 
         // GetNextToken: read and consume
         // LookAheadToken: read but do not consume
@@ -102,9 +107,9 @@ namespace Mini_PL
             Console.WriteLine(s);
         }
 
-        private ASTNode Parse_program()
+        private AST_program Parse_program()
         {
-            return Parse_statement_list();
+            return new AST_program(Parse_statement_list());
         }
 
         private bool IsStatementStarter(TokenKind kind)
@@ -170,7 +175,7 @@ namespace Mini_PL
 
                 default:
                     // Error
-                    statement = new AST_statement();
+                    statement = null;
                     break;
             }
 
@@ -183,17 +188,21 @@ namespace Mini_PL
         {
             IncrementDepth();
 
-            AST_variable_declaration variable_declaration = new AST_variable_declaration();
+            AST_variable_declaration variable_declaration;
 
             Match(TokenKind.var_Keyword);
-            Token varName = GetNextToken();
+            AST_identifier name = Parse_identifier();
             Match(TokenKind.Colon);
-            Token typeName = GetNextToken();
-            DebugPrint("var_declaration: " + varName.Lexeme + " : " + typeName.Lexeme);
+            AST_type type = Parse_type();
+            DebugPrint("variable_declaration");
             if (LookAheadToken().Kind == TokenKind.Assignment)
             {
                 Match(TokenKind.Assignment);
-                Parse_expression();
+                AST_expression expression = Parse_expression();
+                variable_declaration = new AST_variable_declaration(name, type, expression);
+            } else
+            {
+                variable_declaration = new AST_variable_declaration(name, type);
             }
 
             DecrementDepth();
@@ -205,17 +214,31 @@ namespace Mini_PL
         {
             IncrementDepth();
 
-            AST_assignment assignment = new AST_assignment();
+            AST_assignment assignment;
 
-            Token t = GetNextToken();
-            DebugPrint("assignment" + t.Lexeme);
-            // verify identifier
+            AST_identifier identifier = Parse_identifier();
             Match(TokenKind.Assignment);
-            Parse_expression();
+            AST_expression expression = Parse_expression();
 
+            assignment = new AST_assignment(identifier, expression);
             DecrementDepth();
 
             return assignment;
+        }
+
+        private AST_identifier Parse_identifier()
+        {
+            IncrementDepth();
+
+            AST_identifier identifier;
+
+            Token t = GetNextToken();
+            identifier = new AST_identifier(t.Lexeme);
+            DebugPrint("identifier: " + t.Lexeme);
+
+            DecrementDepth();
+
+            return identifier;
         }
 
         private AST_for_statement Parse_for_statement()
@@ -224,8 +247,7 @@ namespace Mini_PL
             DebugPrint("for_statement");
 
             Match(TokenKind.for_Keyword);
-            Token var_ident = GetNextToken();
-            // verify ident
+            AST_identifier identifier = Parse_identifier();
             Match(TokenKind.in_Keyword);
             AST_expression from = Parse_expression();
             Match(TokenKind.RangeDots);
@@ -235,7 +257,7 @@ namespace Mini_PL
             Match(TokenKind.end_Keyword);
             Match(TokenKind.for_Keyword);
 
-            AST_for_statement for_statement = new AST_for_statement(from, to, statement_list);
+            AST_for_statement for_statement = new AST_for_statement(identifier, from, to, statement_list);
 
             DecrementDepth();
 
@@ -246,11 +268,14 @@ namespace Mini_PL
         {
             IncrementDepth();
 
-            AST_read_statement read_statement = new AST_read_statement();
+            AST_read_statement read_statement;
 
             Match(TokenKind.read_Keyword);
-            Token var_ident = GetNextToken();
-            DebugPrint("read_statement, var_ident = " + var_ident.Lexeme);
+            AST_identifier identifier = Parse_identifier();
+
+            DebugPrint("read_statement, identifier = " + identifier.Name);
+
+            read_statement = new AST_read_statement(identifier);
 
             DecrementDepth();
 
@@ -262,10 +287,10 @@ namespace Mini_PL
             IncrementDepth();
             DebugPrint("print_statement");
 
-            AST_print_statement print_statement = new AST_print_statement();
+            AST_print_statement print_statement;
 
             Match(TokenKind.print_Keyword);
-            Parse_expression();
+            print_statement = new AST_print_statement(Parse_expression());
 
             DecrementDepth();
 
@@ -277,11 +302,11 @@ namespace Mini_PL
             IncrementDepth();
             DebugPrint("assert_statement");
 
-            AST_assert_statement assert_statement = new AST_assert_statement();
+            AST_assert_statement assert_statement;
 
             Match(TokenKind.assert_Keyword);
             Match(TokenKind.OpenParenthesis);
-            Parse_expression();
+            assert_statement = new AST_assert_statement(Parse_expression());
             Match(TokenKind.CloseParenthesis);
 
             DecrementDepth();
@@ -328,11 +353,11 @@ namespace Mini_PL
         {
             IncrementDepth();
 
-            AST_unary_operator unary_operator = new AST_unary_operator();
+            AST_unary_operator unary_operator;
 
             DebugPrint("unary_op_opnd");
             Match(TokenKind.Exclamation);
-            unary_operator.SetOperand(Parse_operand());
+            unary_operator = new AST_unary_operator(Parse_operand());
 
             DecrementDepth();
 
@@ -380,59 +405,97 @@ namespace Mini_PL
         {
             IncrementDepth();
 
-            AST_binary_operator binary_operator = new AST_binary_operator();
+            AST_binary_operator binary_operator;
 
             Token t = GetNextToken();
             DebugPrint("op " + t.Lexeme);
+            AST_binary_operator.OperatorKind kind;
             switch (t.Kind)
             {
                 case TokenKind.Plus:
+                    kind = AST_binary_operator.OperatorKind.Plus;
+                    break;
+
+                case TokenKind.Minus:
+                    kind = AST_binary_operator.OperatorKind.Minus;
+                    break;
+
+                case TokenKind.Asterisk:
+                    kind = AST_binary_operator.OperatorKind.Asterisk;
+                    break;
+
+                case TokenKind.Slash:
+                    kind = AST_binary_operator.OperatorKind.Slash;
+                    break;
+
+                case TokenKind.Less:
+                    kind = AST_binary_operator.OperatorKind.Less;
+                    break;
+
+                case TokenKind.Equal:
+                    kind = AST_binary_operator.OperatorKind.Equal;
+                    break;
+
+                case TokenKind.Ampersand:
+                    kind = AST_binary_operator.OperatorKind.Ampersand;
                     break;
 
                 default:
+                    kind = AST_binary_operator.OperatorKind.Plus;
                     break;
             }
+
+            binary_operator = new AST_binary_operator(kind);
 
             DecrementDepth();
 
             return binary_operator;
         }
 
-        private void Parse_type()
+        private AST_type Parse_type()
         {
             IncrementDepth();
+
+            AST_type type;
 
             Token t = GetNextToken();
             switch (t.Kind)
             {
                 case TokenKind.int_Keyword:
                     DebugPrint("type int");
+                    type = new AST_type(AST_type.AST_type_kind.int_type);
                     break;
 
                 case TokenKind.string_Keyword:
                     DebugPrint("type string");
+                    type = new AST_type(AST_type.AST_type_kind.string_type);
                     break;
 
                 case TokenKind.bool_Keyword:
                     DebugPrint("type bool");
+                    type = new AST_type(AST_type.AST_type_kind.bool_type);
                     break;
 
                 default:
                     // Error
+                    type = new AST_type(AST_type.AST_type_kind.bool_type);
                     break;
             }
 
             DecrementDepth();
+
+            return type;
         }
 
         private AST_integer_literal Parse_integer_literal()
         {
             IncrementDepth();
 
-            AST_integer_literal integer_literal = new AST_integer_literal();
+            AST_integer_literal integer_literal;
 
             Match(TokenKind.int_Literal);
             DebugPrint("int_Literal: " + lastReadToken.Lexeme);
+            integer_literal = new AST_integer_literal(lastReadToken.Lexeme);
 
             DecrementDepth();
 
@@ -443,10 +506,12 @@ namespace Mini_PL
         {
             IncrementDepth();
 
-            AST_string_literal string_literal = new AST_string_literal();
+            AST_string_literal string_literal;
 
             Match(TokenKind.string_Literal);
             DebugPrint("string_Literal: " + lastReadToken.Lexeme);
+
+            string_literal = new AST_string_literal(lastReadToken.Lexeme);
 
             DecrementDepth();
 
@@ -457,29 +522,28 @@ namespace Mini_PL
         {
             IncrementDepth();
 
-            AST_bool_literal bool_literal = new AST_bool_literal();
+            AST_bool_literal bool_literal;
 
             Match(TokenKind.bool_Literal);
             DebugPrint("bool_Literal: " + lastReadToken.Lexeme);
+            bool value = false;
+            if (lastReadToken.Lexeme.Equals("false"))
+            {
+                value = false;
+            }
+            else if (lastReadToken.Lexeme.Equals("true"))
+            {
+                value = true;
+            }
+            else
+            {
+                // Error
+            }
+            bool_literal = new AST_bool_literal(value);
 
             DecrementDepth();
 
             return bool_literal;
-        }
-
-        private AST_identifier Parse_identifier()
-        {
-            IncrementDepth();
-            DebugPrint("var_ident");
-
-            AST_identifier identifier = new AST_identifier();
-
-            Match(TokenKind.Identifier);
-            DebugPrint("ident: " + lastReadToken.Lexeme);
-
-            DecrementDepth();
-
-            return identifier;
         }
 
     }

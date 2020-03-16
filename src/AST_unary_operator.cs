@@ -8,9 +8,22 @@ namespace Mini_PL
     {
         private AST_operand operand;
 
-        public void SetOperand(AST_operand operand)
+        public AST_operand Operand
+        {
+            get
+            {
+                return this.operand;
+            }
+        }
+
+        public AST_unary_operator(AST_operand operand)
         {
             this.operand = operand;
+        }
+
+        override public void Accept(ASTVisitor visitor)
+        {
+            visitor.Visit(this);
         }
     }
 }

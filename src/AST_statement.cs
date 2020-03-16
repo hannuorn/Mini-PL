@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Mini_PL
 {
-    class AST_statement : ASTNode
+    abstract class AST_statement : ASTNode
     {
     }
 }
