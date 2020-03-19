@@ -6,6 +6,16 @@ namespace Mini_PL
 {
     abstract class ASTVisitor
     {
+        public virtual void Visit(ASTDummy_statement dummy_statement)
+        {
+
+        }
+
+        public virtual void Visit(ASTDummy_operand dummy_operand)
+        {
+
+        }
+
         public virtual void Visit(AST_assert_statement assert_statement)
         {
             IncrementDepth();
@@ -33,18 +43,21 @@ namespace Mini_PL
         }
         public virtual void Visit(AST_expression expression)
         {
-
         }
         public virtual void Visit(AST_expression_operand expression_operand)
         {
-            IncrementDepth();
-            expression_operand.Expression.Accept(this);
-            DecrementDepth();
+            if (expression_operand.Expression != null)
+            {
+                IncrementDepth();
+                expression_operand.Expression.Accept(this);
+                DecrementDepth();
+            }
         }
 
         public virtual void Visit(AST_for_statement for_statement)
         {
             IncrementDepth();
+            for_statement.Identifier.Accept(this);
             for_statement.From.Accept(this);
             for_statement.To.Accept(this);
             for_statement.StatementList.Accept(this);
@@ -62,7 +75,9 @@ namespace Mini_PL
 
         public virtual void Visit(AST_print_statement print_statement)
         {
-
+            IncrementDepth();
+            print_statement.Expression.Accept(this);
+            DecrementDepth();
         }
 
         public virtual void Visit(AST_program program)
@@ -84,7 +99,10 @@ namespace Mini_PL
             IncrementDepth();
             foreach (AST_statement statement in statement_list.statement_list)
             {
-                statement.Accept(this);
+                if (statement != null)
+                {
+                    statement.Accept(this);
+                }
             }
             DecrementDepth();
         }

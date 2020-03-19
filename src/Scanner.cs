@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using static Mini_PL.TokenKind;
 
 
 namespace Mini_PL
@@ -10,9 +11,58 @@ namespace Mini_PL
         private int Row = 0;
         private int Column = 0;
         private string[] Source;
+        private bool errorsFound = false;
+        private int lastErrorRow = -1;
+        private int lastErrorColumn = -1;
+        
+        
+        public bool ErrorsFound
+        {
+            get
+            {
+                return this.errorsFound;
+            }
+        }
 
         public Scanner()
         {
+        }
+
+        private void PrintSourceError(int row, int column)
+        {
+            if (row - 1 < Source.Length) {
+                string s = Source[row - 1];
+                Console.WriteLine(s);
+                for (int i = 0; i < column - 1; i++)
+                {
+                    Console.Write("_");
+                }
+                Console.WriteLine("^\n");
+            }
+        }
+
+        public void Error(string error, int row, int column)
+        {
+            if (row == lastErrorRow && column == lastErrorColumn) return;
+
+            lastErrorRow = row;
+            lastErrorColumn = column;
+
+            string s = "[" + row + ":" + column + "]";
+            int padding = 12 - s.Length;
+            for (int i = 0; i < padding; i++)
+            {
+                s = string.Concat(s, " ");
+            }
+            s = string.Concat(s, error);
+            Console.WriteLine(s);
+            PrintSourceError(row, column);
+            this.errorsFound = true;
+        }
+
+        public void Error(string error, Token token)
+        {
+            Error(error, token.Row, token.Column);
         }
 
         public void SetSource(string source)
@@ -39,8 +89,8 @@ namespace Mini_PL
         public Token GetNextToken()
         {
             SkipWhitespaceAndComments();
-            int row = Row;
-            int column = Column;
+            int row = Row + 1;
+            int column = Column + 1;
 
             if (AtEndOfSource())
             {
@@ -145,7 +195,20 @@ namespace Mini_PL
 
             if (c == '"')
             {
+                // Find the terminating doublequote, ignore any \"
                 int endOfString = Source[Row].IndexOf('"', Column + 1);
+                while (endOfString >= 0)
+                {
+                    char escape = Source[Row][endOfString - 1];
+                    if (escape.Equals('\\'))
+                    {
+                        endOfString = Source[Row].IndexOf('"', endOfString + 1);
+                    } else
+                    {
+                        break;
+                    }
+                }
+
                 if (endOfString >= 0)
                 {
                     int length = endOfString - Column - 1;
@@ -154,15 +217,16 @@ namespace Mini_PL
                     return new Token(TokenKind.string_Literal, stringLiteral, row, column);
                 } else
                 {
-                    // Error: string literal does not terminate before end-of-line.
-                    // For now, let's add the missing termination and accept the literal.
-                    int length = Source[Row].Length - Column + 1;
-                    string stringLiteral = Source[Row].Substring(Column, length - 1) + "\"";
-                    SkipCharacters(length - 1);
+                    Error("String literal must terminate before end of line.", row, column);
+                    int length = Source[Row].Length - Column - 1;
+                    string stringLiteral = Source[Row].Substring(Column + 1, length);
+                    SkipCharacters(length + 1);
                     return new Token(TokenKind.string_Literal, stringLiteral, row, column);
                 }
             }
-            return null;
+            SkipCharacter();
+            Error("Invalid character: '" + c + "'.", row, column);
+            return new Token(ErrorToken, c.ToString(), row, column);
         }
 
         private TokenKind WordToTokenKind(string word)

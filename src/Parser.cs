@@ -2,6 +2,9 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
+using static Mini_PL.AST_type.AST_type_kind;
+using static Mini_PL.TokenKind;
+
 
 namespace Mini_PL
 {
@@ -17,6 +20,11 @@ namespace Mini_PL
 
         // Debugging aids
         private int depth = 0;
+
+        public bool ErrorsFound { get; set; }
+
+        const TokenKind FirstSet_operand =
+            int_Literal | string_Literal | bool_Literal | Identifier | OpenParenthesis;
 
 
         public Parser(Scanner scanner)
@@ -69,23 +77,23 @@ namespace Mini_PL
             return (lastReadToken != null && lastReadToken.Kind == TokenKind.EndOfSource);
         }
 
-        private void Match(TokenKind kind)
+        private bool Match(TokenKind kind)
         {
             Token token = GetNextToken();
-            // verify token kind
-            Debug.Assert(token.Kind == kind);
+            bool matches = (token.Kind == kind);
+            if (!matches)
+            {
+                // Error(kind.ToString() + " expected, " + token.Kind.ToString() + " found.");
+            }
+            return matches;
         }
+
+        const TokenKind BinaryOperators =
+            Plus | Minus | Asterisk | Slash | Less | Equal | Ampersand;
 
         public bool IsBinaryOperator(TokenKind kind)
         {
-            return (
-                kind == TokenKind.Plus ||
-                kind == TokenKind.Minus ||
-                kind == TokenKind.Asterisk ||
-                kind == TokenKind.Slash ||
-                kind == TokenKind.Less ||
-                kind == TokenKind.Equal ||
-                kind == TokenKind.Ampersand);
+            return isMemberOf(kind, BinaryOperators);
         }
 
         private void IncrementDepth()
@@ -100,27 +108,46 @@ namespace Mini_PL
 
         private void DebugPrint(string s)
         {
+            /*
             for (int i = 0; i < depth; i++)
             {
                 Console.Write("  ");
             }
             Console.WriteLine(s);
+            */
+        }
+
+        private void SkipUntilFollow(TokenKind followSet)
+        {
+            while (!isMemberOf(LookAheadToken().Kind, followSet | EndOfSource))
+            {
+                GetNextToken();
+            }
         }
 
         private AST_program Parse_program()
         {
-            return new AST_program(Parse_statement_list());
+            AST_statement_list statement_list = Parse_statement_list();
+            Match(EndOfSource);
+            return new AST_program(statement_list);
         }
+
+        private bool isMemberOf(TokenKind kind, TokenKind set)
+        {
+            return (kind & set) == kind;
+        }
+
+        private const TokenKind FirstSet_statement =
+            TokenKind.var_Keyword |
+            TokenKind.Identifier |
+            TokenKind.for_Keyword |
+            TokenKind.read_Keyword |
+            TokenKind.print_Keyword |
+            TokenKind.assert_Keyword;
 
         private bool IsStatementStarter(TokenKind kind)
         {
-            return (
-                kind == TokenKind.var_Keyword ||
-                kind == TokenKind.Identifier ||
-                kind == TokenKind.for_Keyword ||
-                kind == TokenKind.read_Keyword ||
-                kind == TokenKind.print_Keyword ||
-                kind == TokenKind.assert_Keyword);
+            return isMemberOf(kind, FirstSet_statement);
         }
 
         private AST_statement_list Parse_statement_list()
@@ -128,33 +155,56 @@ namespace Mini_PL
             IncrementDepth();
             DebugPrint("statement_list");
 
+            Token t = LookAheadToken();
             AST_statement_list statement_list = new AST_statement_list();
 
             do
             {
-                statement_list.Add_statement(Parse_statement());
-                Match(TokenKind.Semicolon);
+                statement_list.Add_statement(Parse_statement(Semicolon));
+                t = LookAheadToken();
+                if (t.Kind == Semicolon)
+                {
+                    Match(Semicolon);
+                } else
+                {
+                    Error("';' expected, '" + t.Lexeme + "' found.", t);
+                    SkipUntilFollow(Semicolon);
+                    if (!AtEndOfSource())
+                    {
+                        Match(Semicolon);
+                    }
+                }
             } while (IsStatementStarter(LookAheadToken().Kind));
+
+            statement_list.Row = t.Row;
+            statement_list.Column = t.Column;
 
             DecrementDepth();
             return statement_list;
         }
 
-        private AST_statement Parse_statement()
+        private void Error(string error, Token token)
+        {
+            scanner.Error(error, token);
+            ErrorsFound = true;
+        }
+
+        private AST_statement Parse_statement(TokenKind followSet)
         {
             IncrementDepth();
             DebugPrint("stmt");
 
             AST_statement statement;
+            Token t = LookAheadToken();
 
-            switch (LookAheadToken().Kind)
+            switch (t.Kind)
             {
                 case TokenKind.var_Keyword:
                     statement = Parse_variable_declaration();
                     break;
 
                 case TokenKind.Identifier:
-                    statement = Parse_assignment();
+                    statement = Parse_assignment(followSet);
                     break;
 
                 case TokenKind.for_Keyword:
@@ -170,13 +220,19 @@ namespace Mini_PL
                     break;
 
                 case TokenKind.assert_Keyword:
-                    statement = Parse_assert_statement();
+                    statement = Parse_assert_statement(followSet);
                     break;
 
                 default:
-                    // Error
-                    statement = null;
+                    Error("Statement expected. '" + t.Lexeme + "' does not start a statement.", t);
+                    SkipUntilFollow(followSet);
+                    statement = new ASTDummy_statement();
                     break;
+            }
+            if (statement != null)
+            {
+                statement.Row = t.Row;
+                statement.Column = t.Column;
             }
 
             DecrementDepth();
@@ -191,14 +247,14 @@ namespace Mini_PL
             AST_variable_declaration variable_declaration;
 
             Match(TokenKind.var_Keyword);
-            AST_identifier name = Parse_identifier();
+            AST_identifier name = Parse_identifier(Colon);
             Match(TokenKind.Colon);
-            AST_type type = Parse_type();
+            AST_type type = Parse_type(Assignment | Semicolon);
             DebugPrint("variable_declaration");
             if (LookAheadToken().Kind == TokenKind.Assignment)
             {
                 Match(TokenKind.Assignment);
-                AST_expression expression = Parse_expression();
+                AST_expression expression = Parse_expression(Semicolon);
                 variable_declaration = new AST_variable_declaration(name, type, expression);
             } else
             {
@@ -210,15 +266,15 @@ namespace Mini_PL
             return variable_declaration;
         }
 
-        private AST_assignment Parse_assignment()
+        private AST_assignment Parse_assignment(TokenKind followSet)
         {
             IncrementDepth();
 
             AST_assignment assignment;
 
-            AST_identifier identifier = Parse_identifier();
+            AST_identifier identifier = Parse_identifier(Assignment);
             Match(TokenKind.Assignment);
-            AST_expression expression = Parse_expression();
+            AST_expression expression = Parse_expression(Semicolon);
 
             assignment = new AST_assignment(identifier, expression);
             DecrementDepth();
@@ -226,15 +282,25 @@ namespace Mini_PL
             return assignment;
         }
 
-        private AST_identifier Parse_identifier()
+        private AST_identifier Parse_identifier(TokenKind followSet)
         {
             IncrementDepth();
 
             AST_identifier identifier;
 
             Token t = GetNextToken();
-            identifier = new AST_identifier(t.Lexeme);
-            DebugPrint("identifier: " + t.Lexeme);
+            if (t.Kind == Identifier)
+            {
+                identifier = new AST_identifier(t.Lexeme);
+                identifier.Row = t.Row;
+                identifier.Column = t.Column;
+                DebugPrint("identifier: " + t.Lexeme);
+            } else
+            {
+                Error("Identifier expected, '" + t.Lexeme + "' found.", t);
+                SkipUntilFollow(followSet);
+                identifier = new AST_identifier("");
+            }
 
             DecrementDepth();
 
@@ -247,11 +313,11 @@ namespace Mini_PL
             DebugPrint("for_statement");
 
             Match(TokenKind.for_Keyword);
-            AST_identifier identifier = Parse_identifier();
+            AST_identifier identifier = Parse_identifier(in_Keyword);
             Match(TokenKind.in_Keyword);
-            AST_expression from = Parse_expression();
+            AST_expression from = Parse_expression(RangeDots);
             Match(TokenKind.RangeDots);
-            AST_expression to = Parse_expression();
+            AST_expression to = Parse_expression(do_Keyword);
             Match(TokenKind.do_Keyword);
             AST_statement_list statement_list = Parse_statement_list();
             Match(TokenKind.end_Keyword);
@@ -271,7 +337,7 @@ namespace Mini_PL
             AST_read_statement read_statement;
 
             Match(TokenKind.read_Keyword);
-            AST_identifier identifier = Parse_identifier();
+            AST_identifier identifier = Parse_identifier(Semicolon);
 
             DebugPrint("read_statement, identifier = " + identifier.Name);
 
@@ -290,55 +356,78 @@ namespace Mini_PL
             AST_print_statement print_statement;
 
             Match(TokenKind.print_Keyword);
-            print_statement = new AST_print_statement(Parse_expression());
+            print_statement = new AST_print_statement(Parse_expression(Semicolon));
 
             DecrementDepth();
 
             return print_statement;
         }
 
-        private AST_assert_statement Parse_assert_statement()
+        private AST_assert_statement Parse_assert_statement(TokenKind followSet)
         {
             IncrementDepth();
             DebugPrint("assert_statement");
 
-            AST_assert_statement assert_statement;
+            AST_assert_statement assert_statement = null;
 
             Match(TokenKind.assert_Keyword);
-            Match(TokenKind.OpenParenthesis);
-            assert_statement = new AST_assert_statement(Parse_expression());
-            Match(TokenKind.CloseParenthesis);
+            if (LookAheadToken().Kind == OpenParenthesis)
+            {
+                Match(TokenKind.OpenParenthesis);
+                assert_statement = new AST_assert_statement(
+                    Parse_expression(followSet | CloseParenthesis));
+                if (LookAheadToken().Kind == CloseParenthesis)
+                {
+                    Match(TokenKind.CloseParenthesis);
+                } else
+                {
+                    Error("')' expected, '" + LookAheadToken().Lexeme + "' found.", LookAheadToken());
+                    SkipUntilFollow(followSet);
+                }
+            } else
+            {
+                Error("'(' expeced, '" + LookAheadToken().Lexeme + "' found.", LookAheadToken());
+                SkipUntilFollow(followSet);
+            }
 
             DecrementDepth();
 
             return assert_statement;
         }
 
-        private AST_expression Parse_expression()
+        private AST_expression Parse_expression(TokenKind followSet)
         {
             IncrementDepth();
             DebugPrint("expr");
 
             AST_expression expression;
 
-            switch (LookAheadToken().Kind)
+            Token t = LookAheadToken();
+            switch (t.Kind)
             {
-                case TokenKind.Exclamation:
-                    expression = Parse_unary_operator_operand();
+                case Exclamation:
+                    expression = Parse_unary_operator_operand(followSet);
                     break;
 
                 default:
-                    AST_operand left_operand = Parse_operand();
-                    if (IsBinaryOperator(LookAheadToken().Kind))
-                    {
-                        AST_binary_operator binary_operator = Parse_binary_operator();
-                        AST_operand right_operand = Parse_operand();
-                        binary_operator.SetLeft(left_operand);
-                        binary_operator.SetRight(right_operand);
-                        expression = binary_operator;
+                    if (isMemberOf(t.Kind, FirstSet_operand)) {
+                        AST_operand left_operand = Parse_operand(followSet | BinaryOperators);
+                        if (IsBinaryOperator(LookAheadToken().Kind))
+                        {
+                            AST_binary_operator binary_operator = Parse_binary_operator(followSet);
+                            AST_operand right_operand = Parse_operand(followSet);
+                            binary_operator.SetLeft(left_operand);
+                            binary_operator.SetRight(right_operand);
+                            expression = binary_operator;
+                        } else
+                        {
+                            expression = left_operand;
+                        }
                     } else
                     {
-                        expression = left_operand;
+                        Error("Expression expected. '" + t.Lexeme + "' does not start an expression.", t);
+                        expression = new ASTDummy_operand();
+                        SkipUntilFollow(followSet);
                     }
 
                     break;
@@ -349,59 +438,79 @@ namespace Mini_PL
             return expression;
         }
 
-        private AST_unary_operator Parse_unary_operator_operand()
+        private AST_unary_operator Parse_unary_operator_operand(TokenKind followSet)
         {
             IncrementDepth();
 
+            Token t = LookAheadToken();
             AST_unary_operator unary_operator;
 
             DebugPrint("unary_op_opnd");
             Match(TokenKind.Exclamation);
-            unary_operator = new AST_unary_operator(Parse_operand());
+            unary_operator = new AST_unary_operator(Parse_operand(followSet));
+            unary_operator.Row = t.Row;
+            unary_operator.Column = t.Column;
 
             DecrementDepth();
 
             return unary_operator;
         }
 
-        private AST_operand Parse_operand()
+        private AST_operand Parse_operand(TokenKind followSet)
         {
             IncrementDepth();
             DebugPrint("opnd");
 
+            Token t = LookAheadToken();
             AST_operand operand;
 
-            switch (LookAheadToken().Kind)
+            switch (t.Kind)
             {
-                case TokenKind.int_Literal:
+                case int_Literal:
                     operand = Parse_integer_literal();
                     break;
 
-                case TokenKind.string_Literal:
+                case string_Literal:
                     operand = Parse_string_literal();
                     break;
 
-                case TokenKind.bool_Literal:
-                    operand = Parse_bool_literal();
+                case bool_Literal:
+                    operand = Parse_bool_literal(followSet);
                     break;
 
-                case TokenKind.Identifier:
-                    operand = Parse_identifier();
+                case Identifier:
+                    operand = Parse_identifier(followSet);
+                    break;
+
+                case OpenParenthesis:
+                    Match(TokenKind.OpenParenthesis);
+                    operand = new AST_expression_operand(Parse_expression(followSet | CloseParenthesis));
+                    if (LookAheadToken().Kind == CloseParenthesis)
+                    {
+                        Match(CloseParenthesis);
+                    } else
+                    {
+                        Error("')' expected, '" + LookAheadToken().Lexeme + "' found.", LookAheadToken());
+                        SkipUntilFollow(followSet);
+                    }
                     break;
 
                 default:
-                    Match(TokenKind.OpenParenthesis);
-                    operand = new AST_expression_operand(Parse_expression());
-                    Match(TokenKind.CloseParenthesis);
+                    Error("Operand expected. '" + t.Lexeme + "' does not start an operand.", t);
+                    SkipUntilFollow(followSet);
+                    operand = new ASTDummy_operand();
                     break;
             }
+
+            operand.Row = t.Row;
+            operand.Column = t.Column;
 
             DecrementDepth();
 
             return operand;
         }
 
-        private AST_binary_operator Parse_binary_operator()
+        private AST_binary_operator Parse_binary_operator(TokenKind followSet)
         {
             IncrementDepth();
 
@@ -412,47 +521,51 @@ namespace Mini_PL
             AST_binary_operator.OperatorKind kind;
             switch (t.Kind)
             {
-                case TokenKind.Plus:
+                case Plus:
                     kind = AST_binary_operator.OperatorKind.Plus;
                     break;
 
-                case TokenKind.Minus:
+                case Minus:
                     kind = AST_binary_operator.OperatorKind.Minus;
                     break;
 
-                case TokenKind.Asterisk:
+                case Asterisk:
                     kind = AST_binary_operator.OperatorKind.Asterisk;
                     break;
 
-                case TokenKind.Slash:
+                case Slash:
                     kind = AST_binary_operator.OperatorKind.Slash;
                     break;
 
-                case TokenKind.Less:
+                case Less:
                     kind = AST_binary_operator.OperatorKind.Less;
                     break;
 
-                case TokenKind.Equal:
+                case Equal:
                     kind = AST_binary_operator.OperatorKind.Equal;
                     break;
 
-                case TokenKind.Ampersand:
+                case Ampersand:
                     kind = AST_binary_operator.OperatorKind.Ampersand;
                     break;
 
                 default:
+                    Error("Binary operator expected.", t);
                     kind = AST_binary_operator.OperatorKind.Plus;
+                    SkipUntilFollow(followSet);
                     break;
             }
 
             binary_operator = new AST_binary_operator(kind);
+            binary_operator.Row = t.Row;
+            binary_operator.Column = t.Column;
 
             DecrementDepth();
 
             return binary_operator;
         }
 
-        private AST_type Parse_type()
+        private AST_type Parse_type(TokenKind followSet)
         {
             IncrementDepth();
 
@@ -463,26 +576,31 @@ namespace Mini_PL
             {
                 case TokenKind.int_Keyword:
                     DebugPrint("type int");
-                    type = new AST_type(AST_type.AST_type_kind.int_type);
+                    type = new AST_type(int_type);
                     break;
 
                 case TokenKind.string_Keyword:
                     DebugPrint("type string");
-                    type = new AST_type(AST_type.AST_type_kind.string_type);
+                    type = new AST_type(string_type);
                     break;
 
                 case TokenKind.bool_Keyword:
                     DebugPrint("type bool");
-                    type = new AST_type(AST_type.AST_type_kind.bool_type);
+                    type = new AST_type(bool_type);
                     break;
 
                 default:
                     // Error
-                    type = new AST_type(AST_type.AST_type_kind.bool_type);
+                    Error("Type expected.", t);
+                    SkipUntilFollow(followSet);
+                    type = new AST_type(bool_type);
                     break;
             }
 
             DecrementDepth();
+
+            type.Row = t.Row;
+            type.Column = t.Column;
 
             return type;
         }
@@ -518,26 +636,34 @@ namespace Mini_PL
             return string_literal;
         }
 
-        private AST_bool_literal Parse_bool_literal()
+        private AST_bool_literal Parse_bool_literal(TokenKind followSet)
         {
             IncrementDepth();
 
             AST_bool_literal bool_literal;
 
-            Match(TokenKind.bool_Literal);
-            DebugPrint("bool_Literal: " + lastReadToken.Lexeme);
+            Token t = GetNextToken();
+            DebugPrint("bool_Literal: " + t.Lexeme);
             bool value = false;
-            if (lastReadToken.Lexeme.Equals("false"))
+            if (t.Kind == bool_Literal)
             {
-                value = false;
-            }
-            else if (lastReadToken.Lexeme.Equals("true"))
-            {
-                value = true;
+                if (t.Lexeme.Equals("false"))
+                {
+                    value = false;
+                }
+                else if (t.Lexeme.Equals("true"))
+                {
+                    value = true;
+                } else
+                {
+                    Error("bool literal expected, '" + t.Lexeme + "' found.", t);
+                    SkipUntilFollow(followSet);
+                }
             }
             else
             {
-                // Error
+                Error("bool literal expected, " + t.Kind.ToString() + " found.", t);
+                SkipUntilFollow(followSet);
             }
             bool_literal = new AST_bool_literal(value);
 

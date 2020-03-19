@@ -212,7 +212,12 @@ namespace Mini_PL
             } else {
                 variable = new Variable(variable_declaration.Type.Kind);
             }
-            variables.Add(variable_declaration.Identifier.Name, variable);
+            string name = variable_declaration.Identifier.Name;
+            if (variables.ContainsKey(name))
+            {
+                variables.Remove(name);
+            }
+            variables.Add(name, variable);
         }
 
     }

@@ -6,6 +6,17 @@ namespace Mini_PL
 {
     class PrintVisitor : ASTVisitor
     {
+        public override void Visit(ASTDummy_statement dummy_statement)
+        {
+            DebugPrint("dummy_statement");
+            base.Visit(dummy_statement);
+        }
+
+        public override void Visit(ASTDummy_operand dummy_operand)
+        {
+            DebugPrint("dummy_operand");
+            base.Visit(dummy_operand);
+        }
 
         override public void Visit(AST_program program)
         {
@@ -62,7 +73,14 @@ namespace Mini_PL
 
         override public void Visit(AST_identifier identifier)
         {
-            DebugPrint("identifier: " + identifier.Name);
+            if (identifier.Declaration == null)
+            {
+                DebugPrint("identifier: " + identifier.Name + " : not declared");
+            } else
+            {
+                AST_type.AST_type_kind dataType = identifier.Declaration.Type.Kind;
+                DebugPrint("identifier: " + identifier.Name + " : " + dataType.ToString());
+            }
         }
 
         override public void Visit(AST_integer_literal integer_literal)

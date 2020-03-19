@@ -18,7 +18,10 @@ namespace Mini_PL
         {
             assert_statement.Expression.Accept(evaluateVisitor);
             bool assertion = evaluateVisitor.Value.BoolValue;
-            Debug.Assert(assertion);
+            if (assertion == false)
+            {
+                Console.WriteLine("ASSERTION ERROR");
+            }
         }
 
         public override void Visit(AST_assignment assignment)
