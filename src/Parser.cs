@@ -136,13 +136,13 @@ namespace Mini_PL
 
         private void DebugPrint(string s)
         {
-            return;
+            /*
             for (int i = 0; i < depth; i++)
             {
                 Console.Write("  ");
             }
             Console.WriteLine(s);
-            
+            */
         }
 
         private void SkipUntilFollow(TokenKind followSet)
@@ -479,7 +479,11 @@ namespace Mini_PL
                 } else
                 {
                     Error("')' expected, '" + LookAheadToken().ToString() + "' found.", LookAheadToken());
-                    SkipUntilFollow(followSet);
+                    SkipUntilFollow(CloseParenthesis | followSet);
+                    if (LookAheadToken().Kind == CloseParenthesis)
+                    {
+                        Match(CloseParenthesis);
+                    }
                 }
             } else
             {
@@ -588,7 +592,11 @@ namespace Mini_PL
                     } else
                     {
                         Error("')' expected, '" + LookAheadToken().ToString() + "' found.", LookAheadToken());
-                        SkipUntilFollow(followSet);
+                        SkipUntilFollow(followSet | CloseParenthesis);
+                        if (LookAheadToken().Kind == CloseParenthesis)
+                        {
+                            Match(CloseParenthesis);
+                        }
                     }
                     break;
 

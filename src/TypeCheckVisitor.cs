@@ -275,9 +275,9 @@ namespace Mini_PL
             base.Visit(unary_operator);
             if (unary_operator.Operand.DataType != bool_type)
             {
-                // Einarinari
                 Error("Unary operator '!' requires a bool operand.", unary_operator);
             }
+            unary_operator.DataType = bool_type;
         }
 
         override public void Visit(AST_variable_declaration variable_declaration)

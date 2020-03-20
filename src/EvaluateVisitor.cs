@@ -35,7 +35,7 @@ namespace Mini_PL
             var.Set(newValue);
         }
 
-        public void SetVariable(string name, string newValue)
+        public bool SetVariable(string name, string newValue)
         {
             Variable var = variables.GetValueOrDefault(name);
             switch (var.Type)
@@ -51,7 +51,14 @@ namespace Mini_PL
                     break;
 
                 case AST_type.AST_type_kind.int_type:
-                    int i = int.Parse(newValue);
+                    int i;
+                    try
+                    {
+                        i = int.Parse(newValue);
+                    } catch (Exception e)
+                    {
+                        return false;
+                    }
                     var.Set(i);
                     break;
 
@@ -63,6 +70,7 @@ namespace Mini_PL
                     break;
 
             }
+            return true;
         }
 
         public override void Visit(AST_assignment assignment)

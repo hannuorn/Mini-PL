@@ -32,7 +32,7 @@ namespace Mini_PL
 
                 if (!scanner.ErrorsFound) 
                 {
-                    ExecuteVisitor executeVisitor = new ExecuteVisitor();
+                    ExecuteVisitor executeVisitor = new ExecuteVisitor(scanner);
                     parser.Get_program().Accept(executeVisitor);
                 }
             } else if (args.Length == 2)

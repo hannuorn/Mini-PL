@@ -7,10 +7,12 @@ namespace Mini_PL
 {
     class ExecuteVisitor : ASTVisitor
     {
+        private Scanner scanner;
         private EvaluateVisitor evaluateVisitor;
 
-        public ExecuteVisitor()
+        public ExecuteVisitor(Scanner scanner)
         {
+            this.scanner = scanner;
             evaluateVisitor = new EvaluateVisitor();
         }
 
@@ -20,7 +22,9 @@ namespace Mini_PL
             bool assertion = evaluateVisitor.Value.BoolValue;
             if (assertion == false)
             {
-                Console.WriteLine("ASSERTION ERROR");
+                scanner.Error("Assertion error.", 
+                    assert_statement.Expression.Row, 
+                    assert_statement.Expression.Column);
             }
         }
 
@@ -53,8 +57,16 @@ namespace Mini_PL
 
         public override void Visit(AST_read_statement read_statement)
         {
-            string input = Console.ReadLine();
-            evaluateVisitor.SetVariable(read_statement.Identifier.Name, input);
+            bool ok = false;
+            while (!ok)
+            {
+                string input = Console.ReadLine();
+                if (evaluateVisitor.SetVariable(read_statement.Identifier.Name, input))
+                {
+                    break;
+                }
+                Console.WriteLine("Not a valid integer.");
+            }
         }
 
         override public void Visit(AST_variable_declaration variable_declaration)
