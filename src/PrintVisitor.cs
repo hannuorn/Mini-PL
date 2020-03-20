@@ -78,8 +78,11 @@ namespace Mini_PL
                 DebugPrint("identifier: " + identifier.Name + " : not declared");
             } else
             {
-                AST_type.AST_type_kind dataType = identifier.Declaration.Type.Kind;
-                DebugPrint("identifier: " + identifier.Name + " : " + dataType.ToString());
+                if (identifier.Declaration.Type != null)
+                {
+                    AST_type.AST_type_kind dataType = identifier.Declaration.Type.Kind;
+                    DebugPrint("identifier: " + identifier.Name + " : " + dataType.ToString());
+                }
             }
         }
 

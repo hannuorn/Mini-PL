@@ -14,8 +14,8 @@ namespace Mini_PL
         private bool errorsFound = false;
         private int lastErrorRow = -1;
         private int lastErrorColumn = -1;
-        
-        
+
+
         public bool ErrorsFound
         {
             get
@@ -30,12 +30,12 @@ namespace Mini_PL
 
         private void PrintSourceError(int row, int column)
         {
-            if (row - 1 < Source.Length) {
-                string s = Source[row - 1];
+            if (row < Source.Length) {
+                string s = Source[row];
                 Console.WriteLine(s);
-                for (int i = 0; i < column - 1; i++)
+                for (int i = 0; i < column; i++)
                 {
-                    Console.Write("_");
+                    Console.Write("-");
                 }
                 Console.WriteLine("^\n");
             }
@@ -48,7 +48,7 @@ namespace Mini_PL
             lastErrorRow = row;
             lastErrorColumn = column;
 
-            string s = "[" + row + ":" + column + "]";
+            string s = "[" + (row + 1) + ":" + (column + 1) + "]";
             int padding = 12 - s.Length;
             for (int i = 0; i < padding; i++)
             {
@@ -86,58 +86,154 @@ namespace Mini_PL
             Column = 0;
         }
 
+        public Token GetIntegerLiteral()
+        {
+            int row = Row;
+            int column = Column;
+            string numberString = "";
+            numberString = CurrentCharacter().ToString();
+            SkipCharacter();
+            while (IsNumber(CurrentCharacter()))
+            {
+                numberString = numberString.Insert(numberString.Length, CurrentCharacter().ToString());
+                SkipCharacter();
+            }
+            return new Token(TokenKind.int_Literal, numberString, row, column);
+
+        }
+
+        private Token GetIdentifierOrKeywordToken()
+        {
+            int row = Row;
+            int column = Column;
+            string id = CurrentCharacter().ToString();
+            SkipCharacter();
+            while (IsIdentifierCharacter(CurrentCharacter()))
+            {
+                id = id.Insert(id.Length, CurrentCharacter().ToString());
+                SkipCharacter();
+            }
+            TokenKind kind = WordToTokenKind(id);
+            return new Token(kind, id, row, column);
+        }
+
+
+        private bool IsEscapeSequence(string source, int index)
+        {
+            return
+                PairOfCharactersEquals("\\\\", source, index) |
+                PairOfCharactersEquals("\\\"", source, index) |
+                PairOfCharactersEquals("\\n", source, index);
+        }
+
+        private string EscapeSequenceValue(string source, int index)
+        {
+            if (PairOfCharactersEquals("\\\\", source, index))
+            {
+                return "\\";
+            } else if (PairOfCharactersEquals("\\\"", source, index)) {
+                return "\"";
+            } else if (PairOfCharactersEquals("\\n", source, index)) {
+                return "\n";
+            }
+            return "";
+        }
+
+        private Token GetStringLiteralToken()
+        {
+            // Build the string one character at a time,
+            // until terminating doublequote is found
+            // or end of line is met.
+            string s = "";
+
+            int row = Row;
+            int column = Column;
+
+            // Skip the initial doublequote
+            SkipCharacter();
+
+            while (true)
+            {
+                if (Column >= Source[Row].Length)
+                {
+                    Error("String literal must terminate before end of line.", row, column);
+                    break;
+                }
+                if (IsEscapeSequence(Source[Row], Column))
+                {
+                    s = s.Insert(s.Length, EscapeSequenceValue(Source[Row], Column));
+                    SkipCharacters(2);
+                } else
+                {
+                    if (Source[Row][Column].Equals('"'))
+                    {
+                        SkipCharacter();
+                        break;
+                    } else
+                    {
+                        s = s.Insert(s.Length, Source[Row][Column].ToString());
+                        SkipCharacter();
+                    }
+                }
+            }
+            return new Token(string_Literal, s, row, column);
+        }
+
         public Token GetNextToken()
         {
             SkipWhitespaceAndComments();
-            int row = Row + 1;
-            int column = Column + 1;
 
             if (AtEndOfSource())
             {
-                return new Token(TokenKind.EndOfSource, "", row, column);
+                return new Token(EndOfSource, "", Row, Column);
             }
             char c = CurrentCharacter();
+            int row = Row;
+            int column = Column;
             switch (c)
             {
                 case ';':
                     SkipCharacter();
-                    return new Token(TokenKind.Semicolon, ";", row, column);
+                    return new Token(Semicolon, ";", row, column);
 
                 case '+':
                     SkipCharacter();
-                    return new Token(TokenKind.Plus, "+", row, column);
+                    return new Token(Plus, "+", row, column);
 
                 case '-':
                     SkipCharacter();
-                    return new Token(TokenKind.Minus, "-", row, column);
+                    return new Token(Minus, "-", row, column);
 
                 case '*':
                     SkipCharacter();
-                    return new Token(TokenKind.Asterisk, "*", row, column);
+                    return new Token(Asterisk, "*", row, column);
 
                 case '/':
                     SkipCharacter();
-                    return new Token(TokenKind.Slash, "/", row, column);
+                    return new Token(Slash, "/", row, column);
 
                 case '=':
                     SkipCharacter();
-                    return new Token(TokenKind.Equal, "=", row, column);
+                    return new Token(Equal, "=", row, column);
 
                 case '&':
                     SkipCharacter();
-                    return new Token(TokenKind.Ampersand, "&", row, column);
+                    return new Token(Ampersand, "&", row, column);
 
                 case '!':
                     SkipCharacter();
-                    return new Token(TokenKind.Exclamation, "!", row, column);
+                    return new Token(Exclamation, "!", row, column);
 
                 case '(':
                     SkipCharacter();
-                    return new Token(TokenKind.OpenParenthesis, "(", row, column);
+                    return new Token(OpenParenthesis, "(", row, column);
 
                 case ')':
                     SkipCharacter();
-                    return new Token(TokenKind.CloseParenthesis, ")", row, column);
+                    return new Token(CloseParenthesis, ")", row, column);
+
+                default:
+                    break;
             }
 
             if (c == ':')
@@ -145,10 +241,10 @@ namespace Mini_PL
                 if (PairOfCharactersEquals(":="))
                 {
                     SkipCharacters(2);
-                    return new Token(TokenKind.Assignment, ":=", row, column);
+                    return new Token(Assignment, ":=", row, column);
                 } else {
                     SkipCharacter();
-                    return new Token(TokenKind.Colon, ":", row, column);
+                    return new Token(Colon, ":", row, column);
                 }
             }
 
@@ -157,72 +253,28 @@ namespace Mini_PL
                 if (PairOfCharactersEquals(".."))
                 {
                     SkipCharacters(2);
-                    return new Token(TokenKind.RangeDots, "..", row, column);
+                    return new Token(RangeDots, "..", row, column);
                 } else
                 {
-                    // This is an error, Mini-PL has no single dot.
-                    // For now, we'll pretend it is a double dot.
+                    Error("Single dot not allowed.", row, column);
                     SkipCharacter();
-                    return new Token(TokenKind.RangeDots, ".", row, column);
+                    return new Token(ErrorToken, ".", row, column);
                 }
             }
 
             if (IsNumber(c))
             {
-                string numberString = "";
-                numberString = c.ToString();
-                SkipCharacter();
-                while (IsNumber(CurrentCharacter()))
-                {
-                    numberString = numberString.Insert(numberString.Length, CurrentCharacter().ToString());
-                    SkipCharacter();
-                }
-                return new Token(TokenKind.int_Literal, numberString, row, column);
+                return GetIntegerLiteral();
             }
 
             if (IsIdentifierCharacter(c))
             {
-                string id = c.ToString();
-                SkipCharacter();
-                while (IsIdentifierCharacter(CurrentCharacter()))
-                {
-                    id = id.Insert(id.Length, CurrentCharacter().ToString());
-                    SkipCharacter();
-                }
-                TokenKind kind = WordToTokenKind(id);
-                return new Token(kind, id, row, column);
+                return GetIdentifierOrKeywordToken();
             }
 
             if (c == '"')
             {
-                // Find the terminating doublequote, ignore any \"
-                int endOfString = Source[Row].IndexOf('"', Column + 1);
-                while (endOfString >= 0)
-                {
-                    char escape = Source[Row][endOfString - 1];
-                    if (escape.Equals('\\'))
-                    {
-                        endOfString = Source[Row].IndexOf('"', endOfString + 1);
-                    } else
-                    {
-                        break;
-                    }
-                }
-
-                if (endOfString >= 0)
-                {
-                    int length = endOfString - Column - 1;
-                    string stringLiteral = Source[Row].Substring(Column + 1, length);
-                    SkipCharacters(length + 2);
-                    return new Token(TokenKind.string_Literal, stringLiteral, row, column);
-                } else
-                {
-                    Error("String literal must terminate before end of line.", row, column);
-                    int length = Source[Row].Length - Column - 1;
-                    string stringLiteral = Source[Row].Substring(Column + 1, length);
-                    SkipCharacters(length + 1);
-                    return new Token(TokenKind.string_Literal, stringLiteral, row, column);
-                }
+                return GetStringLiteralToken();
             }
             SkipCharacter();
             Error("Invalid character: '" + c + "'.", row, column);
@@ -316,6 +368,19 @@ namespace Mini_PL
             }
         }
 
+        // Checks if the pair of characters at index matches a given pair.
+        private bool PairOfCharactersEquals(string pair, string source, int index)
+        {
+            // Comparison possible only if at least 2 characters remaining on the line.
+            if (source.Length - index >= 2)
+            {
+                return (source.Substring(index, 2).Equals(pair));
+            } else
+            {
+                return false;
+            }
+        }
+
         // Checks if the pair of characters at current location matches a given pair.
         private bool PairOfCharactersEquals(string pair)
         {
@@ -324,14 +389,7 @@ namespace Mini_PL
                 return false;
             } else
             {
-                // Comparison possible only if at least 2 characters remaining on the line.
-                if (Source[Row].Length - Column >= 2)
-                {
-                    return (Source[Row].Substring(Column, 2).Equals(pair));
-                } else
-                {
-                    return false;
-                }
+                return PairOfCharactersEquals(pair, Source[Row], Column);
             }
         }
 
@@ -370,7 +428,12 @@ namespace Mini_PL
         {
             while (!AtEndOfSource())
             {
-                if (PairOfCharactersEquals("*)"))
+                // Recursion to handle nested comments
+                if (PairOfCharactersEquals("/*"))
+                {
+                    SkipCharacters(2);
+                    SkipUntilEndOfComment();
+                } else if (PairOfCharactersEquals("*/"))
                 {
                     SkipCharacters(2);
                     break;
@@ -391,7 +454,7 @@ namespace Mini_PL
                 if (PairOfCharactersEquals("//"))
                 {
                     SkipRow();
-                } else if (PairOfCharactersEquals("(*"))
+                } else if (PairOfCharactersEquals("/*"))
                 {
                     SkipCharacters(2);
                     SkipUntilEndOfComment();

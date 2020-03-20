@@ -155,8 +155,14 @@ namespace Mini_PL
         override public void Visit(AST_for_statement for_statement)
         {
             for_statement.Identifier.Accept(this);
-            for_statement.From.Accept(this);
-            for_statement.To.Accept(this);
+            if (for_statement.From != null)
+            {
+                for_statement.From.Accept(this);
+            }
+            if (for_statement.To != null)
+            {
+                for_statement.To.Accept(this);
+            }
 
             string name = for_statement.Identifier.Name;
             bool variableReserved = false;
@@ -179,16 +185,19 @@ namespace Mini_PL
                     Error("Loop variable must be of int type.", for_statement.Identifier);
                 }
             }
-            if (for_statement.From.DataType != int_type)
+            if (for_statement.From != null && for_statement.From.DataType != int_type)
             {
                 // from must be int
                 Error("Lower boundary must be of int type.", for_statement.From);
             }
-            if (for_statement.To.DataType != int_type)
+            if (for_statement.To != null && for_statement.To.DataType != int_type)
             {
                 Error("Upper boundary must be of int type.", for_statement.To);
             }
-            for_statement.StatementList.Accept(this);
+            if (for_statement.StatementList != null)
+            {
+                for_statement.StatementList.Accept(this);
+            }
             if (variableReserved)
             {
                 loopVariables.Remove(name);
@@ -204,7 +213,10 @@ namespace Mini_PL
                 if (variables.ContainsKey(name))
                 {
                     identifier.Declaration = variables.GetValueOrDefault(name);
-                    identifier.DataType = identifier.Declaration.Type.Kind;
+                    if (identifier.Declaration.Type != null)
+                    {
+                        identifier.DataType = identifier.Declaration.Type.Kind;
+                    }
                 }
                 else
                 {
@@ -270,7 +282,10 @@ namespace Mini_PL
 
         override public void Visit(AST_variable_declaration variable_declaration)
         {
-            variable_declaration.Type.Accept(this);
+            if (variable_declaration.Type != null)
+            {
+                variable_declaration.Type.Accept(this);
+            }
             string name = variable_declaration.Identifier.Name;
             if (variables.ContainsKey(name))
             {

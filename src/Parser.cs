@@ -21,10 +21,25 @@ namespace Mini_PL
         // Debugging aids
         private int depth = 0;
 
-        public bool ErrorsFound { get; set; }
 
-        const TokenKind FirstSet_operand =
-            int_Literal | string_Literal | bool_Literal | Identifier | OpenParenthesis;
+        private const TokenKind FirstSet_statement =
+            var_Keyword |
+            Identifier |
+            for_Keyword |
+            read_Keyword |
+            print_Keyword |
+            assert_Keyword;
+
+        private const TokenKind FirstSet_operand =
+            int_Literal | 
+            string_Literal | 
+            bool_Literal | 
+            Identifier | 
+            OpenParenthesis;
+
+        const TokenKind BinaryOperators =
+            Plus | Minus | Asterisk | Slash | Less | Equal | Ampersand;
+
 
 
         public Parser(Scanner scanner)
@@ -44,6 +59,7 @@ namespace Mini_PL
 
         // GetNextToken: read and consume
         // LookAheadToken: read but do not consume
+        // ReuseToken: 'unconsume' what was already consumed
 
         private Token GetNextToken()
         {
@@ -72,9 +88,14 @@ namespace Mini_PL
             }
         }
 
+        private void ReuseToken()
+        {
+            lastReadTokenConsumed = false;
+        }
+
         private bool AtEndOfSource()
         {
-            return (lastReadToken != null && lastReadToken.Kind == TokenKind.EndOfSource);
+            return (lastReadToken != null && lastReadToken.Kind == EndOfSource);
         }
 
         private bool Match(TokenKind kind)
@@ -83,13 +104,20 @@ namespace Mini_PL
             bool matches = (token.Kind == kind);
             if (!matches)
             {
-                // Error(kind.ToString() + " expected, " + token.Kind.ToString() + " found.");
+                ReuseToken();
             }
             return matches;
         }
 
-        const TokenKind BinaryOperators =
-            Plus | Minus | Asterisk | Slash | Less | Equal | Ampersand;
+        private bool isMemberOf(TokenKind kind, TokenKind set)
+        {
+            return (kind & set) == kind;
+        }
+
+        private bool IsStatementStarter(TokenKind kind)
+        {
+            return isMemberOf(kind, FirstSet_statement);
+        }
 
         public bool IsBinaryOperator(TokenKind kind)
         {
@@ -108,13 +136,13 @@ namespace Mini_PL
 
         private void DebugPrint(string s)
         {
-            /*
+            return;
             for (int i = 0; i < depth; i++)
             {
                 Console.Write("  ");
             }
             Console.WriteLine(s);
-            */
+            
         }
 
         private void SkipUntilFollow(TokenKind followSet)
@@ -130,24 +158,6 @@ namespace Mini_PL
             AST_statement_list statement_list = Parse_statement_list();
             Match(EndOfSource);
             return new AST_program(statement_list);
-        }
-
-        private bool isMemberOf(TokenKind kind, TokenKind set)
-        {
-            return (kind & set) == kind;
-        }
-
-        private const TokenKind FirstSet_statement =
-            TokenKind.var_Keyword |
-            TokenKind.Identifier |
-            TokenKind.for_Keyword |
-            TokenKind.read_Keyword |
-            TokenKind.print_Keyword |
-            TokenKind.assert_Keyword;
-
-        private bool IsStatementStarter(TokenKind kind)
-        {
-            return isMemberOf(kind, FirstSet_statement);
         }
 
         private AST_statement_list Parse_statement_list()
@@ -167,7 +177,7 @@ namespace Mini_PL
                     Match(Semicolon);
                 } else
                 {
-                    Error("';' expected, '" + t.Lexeme + "' found.", t);
+                    Error("';' expected, " + t.ToString() + " found.", t);
                     SkipUntilFollow(Semicolon);
                     if (!AtEndOfSource())
                     {
@@ -186,7 +196,6 @@ namespace Mini_PL
         private void Error(string error, Token token)
         {
             scanner.Error(error, token);
-            ErrorsFound = true;
         }
 
         private AST_statement Parse_statement(TokenKind followSet)
@@ -199,32 +208,32 @@ namespace Mini_PL
 
             switch (t.Kind)
             {
-                case TokenKind.var_Keyword:
+                case var_Keyword:
                     statement = Parse_variable_declaration();
                     break;
 
-                case TokenKind.Identifier:
+                case Identifier:
                     statement = Parse_assignment(followSet);
                     break;
 
-                case TokenKind.for_Keyword:
+                case for_Keyword:
                     statement = Parse_for_statement();
                     break;
 
-                case TokenKind.read_Keyword:
+                case read_Keyword:
                     statement = Parse_read_statement();
                     break;
 
-                case TokenKind.print_Keyword:
+                case print_Keyword:
                     statement = Parse_print_statement();
                     break;
 
-                case TokenKind.assert_Keyword:
+                case assert_Keyword:
                     statement = Parse_assert_statement(followSet);
                     break;
 
                 default:
-                    Error("Statement expected. '" + t.Lexeme + "' does not start a statement.", t);
+                    Error("Statement expected. '" + t.ToString() + "' does not start a statement.", t);
                     SkipUntilFollow(followSet);
                     statement = new ASTDummy_statement();
                     break;
@@ -245,21 +254,36 @@ namespace Mini_PL
             IncrementDepth();
 
             AST_variable_declaration variable_declaration;
+            AST_identifier name;
+            AST_type type = null;
+            AST_expression expression = null;
 
-            Match(TokenKind.var_Keyword);
-            AST_identifier name = Parse_identifier(Colon);
-            Match(TokenKind.Colon);
-            AST_type type = Parse_type(Assignment | Semicolon);
-            DebugPrint("variable_declaration");
-            if (LookAheadToken().Kind == TokenKind.Assignment)
+            Match(var_Keyword);
+            name = Parse_identifier(Colon | Semicolon);
+            if (!Match(Colon))
             {
-                Match(TokenKind.Assignment);
-                AST_expression expression = Parse_expression(Semicolon);
-                variable_declaration = new AST_variable_declaration(name, type, expression);
+                Error("':' expected.", lastReadToken);
+                SkipUntilFollow(Semicolon);
             } else
             {
-                variable_declaration = new AST_variable_declaration(name, type);
+                type = Parse_type(Assignment | Semicolon);
+                switch (LookAheadToken().Kind)
+                {
+                    case Assignment:
+                        Match(Assignment);
+                        expression = Parse_expression(Semicolon);
+                        break;
+
+                    case Semicolon:
+                        break;
+
+                    default:
+                        Error("':=' or ';' expected.", LookAheadToken());
+                        SkipUntilFollow(Semicolon);
+                        break;
+                }
             }
+            variable_declaration = new AST_variable_declaration(name, type, expression);
 
             DecrementDepth();
 
@@ -271,10 +295,20 @@ namespace Mini_PL
             IncrementDepth();
 
             AST_assignment assignment;
+            AST_identifier identifier;
+            AST_expression expression = null;
 
-            AST_identifier identifier = Parse_identifier(Assignment);
-            Match(TokenKind.Assignment);
-            AST_expression expression = Parse_expression(Semicolon);
+            identifier = Parse_identifier(Assignment);
+            if (!Match(Assignment))
+            {
+                Error("':=' expected.", lastReadToken);
+                if (LookAheadToken().Kind != Semicolon)
+                {
+                    // Assume an incorrect assignment symbol and skip over it
+                    GetNextToken();
+                }
+            }
+            expression = Parse_expression(Semicolon);
 
             assignment = new AST_assignment(identifier, expression);
             DecrementDepth();
@@ -297,7 +331,7 @@ namespace Mini_PL
                 DebugPrint("identifier: " + t.Lexeme);
             } else
             {
-                Error("Identifier expected, '" + t.Lexeme + "' found.", t);
+                Error("Identifier expected, '" + t.ToString() + "' found.", t);
                 SkipUntilFollow(followSet);
                 identifier = new AST_identifier("");
             }
@@ -312,18 +346,81 @@ namespace Mini_PL
             IncrementDepth();
             DebugPrint("for_statement");
 
-            Match(TokenKind.for_Keyword);
-            AST_identifier identifier = Parse_identifier(in_Keyword);
-            Match(TokenKind.in_Keyword);
-            AST_expression from = Parse_expression(RangeDots);
-            Match(TokenKind.RangeDots);
-            AST_expression to = Parse_expression(do_Keyword);
-            Match(TokenKind.do_Keyword);
-            AST_statement_list statement_list = Parse_statement_list();
-            Match(TokenKind.end_Keyword);
-            Match(TokenKind.for_Keyword);
+            AST_for_statement for_statement = null;
+            AST_expression from = null;
+            AST_expression to = null;
+            AST_statement_list statement_list = null;
 
-            AST_for_statement for_statement = new AST_for_statement(identifier, from, to, statement_list);
+            Match(for_Keyword);
+            AST_identifier identifier = Parse_identifier(in_Keyword);
+
+            bool skipForDo = false;
+            bool skipAll = false;
+            if (!Match(in_Keyword))
+            {
+                Error("'in' expected.", lastReadToken);
+                // Prefer to skip for .. do and still process the statement_list,
+                // worst case is to skip everything until 'end for'
+                SkipUntilFollow(do_Keyword | end_Keyword);
+                if (LookAheadToken().Kind == end_Keyword)
+                {
+                    Match(end_Keyword);
+                    Match(for_Keyword);
+                    skipAll = true;
+                } else
+                {
+                    Match(do_Keyword);
+                    skipForDo = true;
+                }
+            }
+            if (!skipAll)
+            {
+                if (!skipForDo)
+                {
+                    from = Parse_expression(RangeDots);
+                    if (!Match(RangeDots))
+                    {
+                        SkipUntilFollow(do_Keyword | end_Keyword);
+                        if (LookAheadToken().Kind == end_Keyword)
+                        {
+                            Match(end_Keyword);
+                            Match(for_Keyword);
+                            skipAll = true;
+                        } else
+                        {
+                            Match(do_Keyword);
+                            skipForDo = true;
+                        }
+                    }
+                    if (!skipAll && !skipForDo)
+                    {
+                        to = Parse_expression(do_Keyword | end_Keyword);
+                        if (!Match(do_Keyword))
+                        {
+                            Error("'do' expected.", lastReadToken);
+                            ReuseToken();
+                        }
+                    }
+                }
+                if (!skipAll)
+                {
+                    statement_list = Parse_statement_list();
+                    if (!Match(end_Keyword))
+                    {
+                        Error("'end for' or a statement expected.", lastReadToken);
+                        SkipUntilFollow(Semicolon);
+                    } else
+                    {
+                        if (!Match(for_Keyword))
+                        {
+                            Error("'end for' expected.", lastReadToken);
+                            SkipUntilFollow(Semicolon);
+                        }
+                    }
+                }
+            }
+
+            for_statement = new AST_for_statement(identifier, from, to, statement_list);
 
             DecrementDepth();
 
@@ -336,7 +433,7 @@ namespace Mini_PL
 
             AST_read_statement read_statement;
 
-            Match(TokenKind.read_Keyword);
+            Match(read_Keyword);
             AST_identifier identifier = Parse_identifier(Semicolon);
 
             DebugPrint("read_statement, identifier = " + identifier.Name);
@@ -355,7 +452,7 @@ namespace Mini_PL
 
             AST_print_statement print_statement;
 
-            Match(TokenKind.print_Keyword);
+            Match(print_Keyword);
             print_statement = new AST_print_statement(Parse_expression(Semicolon));
 
             DecrementDepth();
@@ -370,23 +467,23 @@ namespace Mini_PL
 
             AST_assert_statement assert_statement = null;
 
-            Match(TokenKind.assert_Keyword);
+            Match(assert_Keyword);
             if (LookAheadToken().Kind == OpenParenthesis)
             {
-                Match(TokenKind.OpenParenthesis);
+                Match(OpenParenthesis);
                 assert_statement = new AST_assert_statement(
                     Parse_expression(followSet | CloseParenthesis));
                 if (LookAheadToken().Kind == CloseParenthesis)
                 {
-                    Match(TokenKind.CloseParenthesis);
+                    Match(CloseParenthesis);
                 } else
                 {
-                    Error("')' expected, '" + LookAheadToken().Lexeme + "' found.", LookAheadToken());
+                    Error("')' expected, '" + LookAheadToken().ToString() + "' found.", LookAheadToken());
                     SkipUntilFollow(followSet);
                 }
             } else
             {
-                Error("'(' expeced, '" + LookAheadToken().Lexeme + "' found.", LookAheadToken());
+                Error("'(' expected, '" + LookAheadToken().ToString() + "' found.", LookAheadToken());
                 SkipUntilFollow(followSet);
             }
 
@@ -425,7 +522,7 @@ namespace Mini_PL
                         }
                     } else
                     {
-                        Error("Expression expected. '" + t.Lexeme + "' does not start an expression.", t);
+                        Error("Expression expected. '" + t.ToString() + "' does not start an expression.", t);
                         expression = new ASTDummy_operand();
                         SkipUntilFollow(followSet);
                     }
@@ -446,7 +543,7 @@ namespace Mini_PL
             AST_unary_operator unary_operator;
 
             DebugPrint("unary_op_opnd");
-            Match(TokenKind.Exclamation);
+            Match(Exclamation);
             unary_operator = new AST_unary_operator(Parse_operand(followSet));
             unary_operator.Row = t.Row;
             unary_operator.Column = t.Column;
@@ -483,20 +580,20 @@ namespace Mini_PL
                     break;
 
                 case OpenParenthesis:
-                    Match(TokenKind.OpenParenthesis);
+                    Match(OpenParenthesis);
                     operand = new AST_expression_operand(Parse_expression(followSet | CloseParenthesis));
                     if (LookAheadToken().Kind == CloseParenthesis)
                     {
                         Match(CloseParenthesis);
                     } else
                     {
-                        Error("')' expected, '" + LookAheadToken().Lexeme + "' found.", LookAheadToken());
+                        Error("')' expected, '" + LookAheadToken().ToString() + "' found.", LookAheadToken());
                         SkipUntilFollow(followSet);
                     }
                     break;
 
                 default:
-                    Error("Operand expected. '" + t.Lexeme + "' does not start an operand.", t);
+                    Error("Operand expected. '" + t.ToString() + "' does not start an operand.", t);
                     SkipUntilFollow(followSet);
                     operand = new ASTDummy_operand();
                     break;
@@ -574,17 +671,17 @@ namespace Mini_PL
             Token t = GetNextToken();
             switch (t.Kind)
             {
-                case TokenKind.int_Keyword:
+                case int_Keyword:
                     DebugPrint("type int");
                     type = new AST_type(int_type);
                     break;
 
-                case TokenKind.string_Keyword:
+                case string_Keyword:
                     DebugPrint("type string");
                     type = new AST_type(string_type);
                     break;
 
-                case TokenKind.bool_Keyword:
+                case bool_Keyword:
                     DebugPrint("type bool");
                     type = new AST_type(bool_type);
                     break;
@@ -611,7 +708,7 @@ namespace Mini_PL
 
             AST_integer_literal integer_literal;
 
-            Match(TokenKind.int_Literal);
+            Match(int_Literal);
             DebugPrint("int_Literal: " + lastReadToken.Lexeme);
             integer_literal = new AST_integer_literal(lastReadToken.Lexeme);
 
@@ -626,7 +723,7 @@ namespace Mini_PL
 
             AST_string_literal string_literal;
 
-            Match(TokenKind.string_Literal);
+            Match(string_Literal);
             DebugPrint("string_Literal: " + lastReadToken.Lexeme);
 
             string_literal = new AST_string_literal(lastReadToken.Lexeme);
@@ -656,13 +753,13 @@ namespace Mini_PL
                     value = true;
                 } else
                 {
-                    Error("bool literal expected, '" + t.Lexeme + "' found.", t);
+                    Error("bool literal expected.", t);
                     SkipUntilFollow(followSet);
                 }
             }
             else
             {
-                Error("bool literal expected, " + t.Kind.ToString() + " found.", t);
+                Error("bool literal expected", t);
                 SkipUntilFollow(followSet);
             }
             bool_literal = new AST_bool_literal(value);

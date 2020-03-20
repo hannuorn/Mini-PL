@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using static Mini_PL.TokenKind;
 
 
 namespace Mini_PL
@@ -40,6 +41,7 @@ namespace Mini_PL
 		ErrorToken			= 0b_0100_0000_0000_0000_0000_0000_0000_0000
 	}
 
+
 	public class Token
 	{
 		private TokenKind kind;
@@ -73,6 +75,18 @@ namespace Mini_PL
 			get
 			{
 				return lexeme;
+			}
+		}
+
+		public override string ToString()
+		{
+			switch (kind)
+			{
+				case EndOfSource:
+					return "<end-of-source>";
+
+				default:
+					return lexeme;
 			}
 		}
 	}

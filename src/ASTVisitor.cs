@@ -58,9 +58,18 @@ namespace Mini_PL
         {
             IncrementDepth();
             for_statement.Identifier.Accept(this);
-            for_statement.From.Accept(this);
-            for_statement.To.Accept(this);
-            for_statement.StatementList.Accept(this);
+            if (for_statement.From != null)
+            {
+                for_statement.From.Accept(this);
+            }
+            if (for_statement.To != null)
+            {
+                for_statement.To.Accept(this);
+            }
+            if (for_statement.StatementList != null)
+            {
+                for_statement.StatementList.Accept(this);
+            }
             DecrementDepth();
         }
 
@@ -128,7 +137,10 @@ namespace Mini_PL
         {
             IncrementDepth();
             variable_declaration.Identifier.Accept(this);
-            variable_declaration.Type.Accept(this);
+            if (variable_declaration.Type != null)
+            {
+                variable_declaration.Type.Accept(this);
+            }
             if (variable_declaration.Expression != null)
             {
                 variable_declaration.Expression.Accept(this);
