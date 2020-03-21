@@ -4,8 +4,6 @@ read nTimes;
 var x : int;
 for x in 0..nTimes-1 do 
    print x;
-   print " : Hello, World!\n";
+   print "   - Hello, World!";
 end for;
 assert (x = nTimes);
-print "Final value of x:";
-print x;
