@@ -1,11 +1,5 @@
-
-print "Morjensta " + "pöytään.";
-print "------------------";
-print "";
-
-var i: int := 37;
-var j: int := 1 + (2 [ (4 - 3)));
-var i: int;
+var i : int;
+var j : int;
 
 print "Anna luku:";
 read i;
@@ -24,11 +18,3 @@ print i * j;
 
 print "Osamäärä";
 print i / j;
-
-var b: bool;
-
-
-   assert ((1 + 1) = 2;
-   assert true;
-
-print;
