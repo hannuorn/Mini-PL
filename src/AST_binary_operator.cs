@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Mini_PL
+﻿namespace Mini_PL
 {
     class AST_binary_operator : AST_expression
     {
@@ -70,6 +66,5 @@ namespace Mini_PL
         {
             this.right = right;
         }
-
     }
 }

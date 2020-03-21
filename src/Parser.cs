@@ -1,14 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Text;
-using static Mini_PL.AST_type.AST_type_kind;
+﻿using static Mini_PL.AST_type.AST_type_kind;
 using static Mini_PL.TokenKind;
-
 
 namespace Mini_PL
 {
-
     class Parser
     {
         private Scanner scanner;
@@ -20,7 +14,6 @@ namespace Mini_PL
 
         // Debugging aids
         private int depth = 0;
-
 
         private const TokenKind FirstSet_statement =
             var_Keyword |
@@ -40,8 +33,6 @@ namespace Mini_PL
         const TokenKind BinaryOperators =
             Plus | Minus | Asterisk | Slash | Less | Equal | Ampersand;
 
-
-
         public Parser(Scanner scanner)
         {
             this.scanner = scanner;
@@ -59,7 +50,7 @@ namespace Mini_PL
 
         // GetNextToken: read and consume
         // LookAheadToken: read but do not consume
-        // ReuseToken: 'unconsume' what was already consumed
+        // ReuseToken: 'unconsume' a token that was already consumed
 
         private Token GetNextToken()
         {
@@ -695,7 +686,6 @@ namespace Mini_PL
                     break;
 
                 default:
-                    // Error
                     Error("Type expected.", t);
                     SkipUntilFollow(followSet);
                     type = new AST_type(bool_type);
@@ -776,7 +766,5 @@ namespace Mini_PL
 
             return bool_literal;
         }
-
     }
-
 }

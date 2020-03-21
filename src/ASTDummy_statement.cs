@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-
-namespace Mini_PL
+﻿namespace Mini_PL
 {
     class ASTDummy_statement : AST_statement
     {

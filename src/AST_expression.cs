@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Mini_PL
+﻿namespace Mini_PL
 {
     abstract class AST_expression : ASTNode
     {
@@ -19,6 +15,5 @@ namespace Mini_PL
                 this.dataType = value;
             }
         }
-
     }
 }

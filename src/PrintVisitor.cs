@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Mini_PL
+﻿namespace Mini_PL
 {
     class PrintVisitor : ASTVisitor
     {
@@ -123,6 +119,5 @@ namespace Mini_PL
             DebugPrint("variable_declaration");
             base.Visit(variable_declaration);
         }
-
     }
 }

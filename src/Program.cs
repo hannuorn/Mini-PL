@@ -1,7 +1,4 @@
-﻿using System;
-
-
-namespace Mini_PL
+﻿namespace Mini_PL
 {
     class Program
     {

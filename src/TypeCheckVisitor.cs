@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 using static Mini_PL.AST_type.AST_type_kind;
 using static Mini_PL.AST_binary_operator.OperatorKind;
-
 
 namespace Mini_PL
 {

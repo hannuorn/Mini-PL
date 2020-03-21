@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections;
 using static Mini_PL.TokenKind;
-
 
 namespace Mini_PL
 {
@@ -40,7 +38,6 @@ namespace Mini_PL
 		Identifier			= 0b_0010_0000_0000_0000_0000_0000_0000_0000,
 		ErrorToken			= 0b_0100_0000_0000_0000_0000_0000_0000_0000
 	}
-
 
 	public class Token
 	{

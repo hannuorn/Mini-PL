@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 using static Mini_PL.TokenKind;
-
 
 namespace Mini_PL
 {
@@ -14,7 +11,6 @@ namespace Mini_PL
         private bool errorsFound = false;
         private int lastErrorRow = -1;
         private int lastErrorColumn = -1;
-
 
         public bool ErrorsFound
         {
@@ -116,7 +112,6 @@ namespace Mini_PL
             TokenKind kind = WordToTokenKind(id);
             return new Token(kind, id, row, column);
         }
-
 
         private bool IsEscapeSequence(string source, int index)
         {

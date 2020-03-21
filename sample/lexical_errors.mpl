@@ -1,11 +1,11 @@
-(*
+/*
 
 Test:
 
  1. Invalid characters in source code
  2. Nonterminated string literals
 
-*)
+*/
 
 
 var ördäys : string := "Hurjaa menoa";

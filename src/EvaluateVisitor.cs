@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Mini_PL
 {
@@ -227,6 +226,5 @@ namespace Mini_PL
             }
             variables.Add(name, variable);
         }
-
     }
 }

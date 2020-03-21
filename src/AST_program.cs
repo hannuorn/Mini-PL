@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Mini_PL
+﻿namespace Mini_PL
 {
     class AST_program : ASTNode
     {
@@ -25,6 +21,5 @@ namespace Mini_PL
         {
             visitor.Visit(this);
         }
-
     }
 }
