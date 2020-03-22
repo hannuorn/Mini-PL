@@ -12,7 +12,7 @@ namespace Mini_PL
         private Token lastReadToken = null;
         private bool lastReadTokenConsumed = false;
 
-        // Debugging aids
+        // depth is a debugging aid that keeps track of levels of parsing hierarchy
         private int depth = 0;
 
         private const TokenKind FirstSet_statement =
@@ -144,6 +144,11 @@ namespace Mini_PL
             }
         }
 
+        private void Error(string error, Token token)
+        {
+            scanner.Error(error, token);
+        }
+
         private AST_program Parse_program()
         {
             AST_statement_list statement_list = Parse_statement_list();
@@ -182,11 +187,6 @@ namespace Mini_PL
 
             DecrementDepth();
             return statement_list;
-        }
-
-        private void Error(string error, Token token)
-        {
-            scanner.Error(error, token);
         }
 
         private AST_statement Parse_statement(TokenKind followSet)

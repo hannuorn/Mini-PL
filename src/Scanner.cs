@@ -5,10 +5,14 @@ namespace Mini_PL
 {
     class Scanner
     {
+        // Row and Column indicate the current position in the source code.
         private int Row = 0;
         private int Column = 0;
         private string[] Source;
+
         private bool errorsFound = false;
+
+        // Remember last error position to suppress multiple errors at the same position.
         private int lastErrorRow = -1;
         private int lastErrorColumn = -1;
 
@@ -24,6 +28,7 @@ namespace Mini_PL
         {
         }
 
+        // Print erroneous line of source code and the columm pointer.
         private void PrintSourceError(int row, int column)
         {
             if (row < Source.Length) {
@@ -71,9 +76,16 @@ namespace Mini_PL
             Source = source;
         }
 
-        public void ReadSource(string fileName)
+        public bool ReadSource(string fileName)
         {
-            Source = System.IO.File.ReadAllLines(fileName);
+            try
+            {
+                Source = System.IO.File.ReadAllLines(fileName);
+                return true;
+            } catch (Exception)
+            {
+                return false;
+            }
         }
 
         public void Reset()
@@ -95,7 +107,6 @@ namespace Mini_PL
                 SkipCharacter();
             }
             return new Token(TokenKind.int_Literal, numberString, row, column);
-
         }
 
         private Token GetIdentifierOrKeywordToken()

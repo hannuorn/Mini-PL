@@ -1,50 +1,64 @@
-﻿namespace Mini_PL
+﻿using System;
+
+namespace Mini_PL
 {
     class Program
     {
+        static private void WriteInstructions()
+        {
+            Console.WriteLine("\nInstructions:\n");
+            Console.WriteLine("   Mini-PL [-AST] filename");
+        }
+
         static void Main(string[] args)
         {
             if (args.Length == 1)
             {
                 Scanner scanner = new Scanner();
-                scanner.ReadSource(args[0]);
-                /*
-                Token token;
-                do
+                bool ok = scanner.ReadSource(args[0]);
+                if (ok)
                 {
-                    token = scanner.GetNextToken();
-                    Console.WriteLine("kind: " + token.Kind.ToString() + ", \t\tlexeme: " + token.Lexeme);
-                } while (token.Kind != TokenKind.EndOfSource);
-                scanner.Reset();
-                */
+                    Parser parser = new Parser(scanner);
+                    parser.Parse();
 
-                Parser parser = new Parser(scanner);
-                parser.Parse();
+                    TypeCheckVisitor typeCheckVisitor = new TypeCheckVisitor(scanner);
+                    parser.Get_program().Accept(typeCheckVisitor);
 
-                TypeCheckVisitor typeCheckVisitor = new TypeCheckVisitor(scanner);
-                parser.Get_program().Accept(typeCheckVisitor);
-
-                PrintVisitor printVisitor = new PrintVisitor();
-                // parser.Get_program().Accept(printVisitor);
-
-                if (!scanner.ErrorsFound) 
+                    if (!scanner.ErrorsFound)
+                    {
+                        ExecuteVisitor executeVisitor = new ExecuteVisitor(scanner);
+                        parser.Get_program().Accept(executeVisitor);
+                    }
+                } else
                 {
-                    ExecuteVisitor executeVisitor = new ExecuteVisitor(scanner);
-                    parser.Get_program().Accept(executeVisitor);
+                    Console.WriteLine("Cannot read file '" + args[0] + "'.");
                 }
+
             } else if (args.Length == 2)
             {
                 if (args[0].Equals("-AST"))
                 {
                     Scanner scanner = new Scanner();
-                    scanner.ReadSource(args[1]);
-                    Parser parser = new Parser(scanner);
-                    parser.Parse();
-                    TypeCheckVisitor typeCheckVisitor = new TypeCheckVisitor(scanner);
-                    parser.Get_program().Accept(typeCheckVisitor);
-                    PrintVisitor printVisitor = new PrintVisitor();
-                    parser.Get_program().Accept(printVisitor);
+                    bool ok = scanner.ReadSource(args[1]);
+                    if (ok)
+                    {
+                        Parser parser = new Parser(scanner);
+                        parser.Parse();
+                        TypeCheckVisitor typeCheckVisitor = new TypeCheckVisitor(scanner);
+                        parser.Get_program().Accept(typeCheckVisitor);
+                        PrintVisitor printVisitor = new PrintVisitor();
+                        parser.Get_program().Accept(printVisitor);
+                    } else
+                    {
+                        Console.WriteLine("Cannot read file '" + args[1] + "'.");
+                    }
+                } else
+                {
+                    WriteInstructions();
                 }
+            } else
+            {
+                WriteInstructions();
             }
         }
     }

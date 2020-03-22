@@ -54,7 +54,7 @@ namespace Mini_PL
                     try
                     {
                         i = int.Parse(newValue);
-                    } catch (Exception e)
+                    } catch (Exception)
                     {
                         return false;
                     }

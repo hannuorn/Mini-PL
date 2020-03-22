@@ -8,6 +8,8 @@ namespace Mini_PL
     {
         private Scanner scanner;
         private SortedDictionary<string, AST_variable_declaration> variables;
+
+        // loopVariables keeps track of which variables are used as loop variables
         private SortedDictionary<string, bool> loopVariables;
         private bool errorsFound = false;
 
@@ -67,7 +69,6 @@ namespace Mini_PL
         override public void Visit(AST_binary_operator binary_operator)
         {
             base.Visit(binary_operator);
-            // check type of left = type of right
             if (binary_operator.LeftOperand.DataType != binary_operator.RightOperand.DataType)
             {
                 Error("Left and right operands of binary operator must be of same type.", binary_operator);
@@ -91,9 +92,11 @@ namespace Mini_PL
                         break;
 
                     case Equal:
+                        // All types accepted
                         break;
 
                     case Less:
+                        // All types accepted
                         break;
 
                     case Minus:
@@ -168,6 +171,7 @@ namespace Mini_PL
             {
                 if (variables.GetValueOrDefault(name).Type.Kind == int_type)
                 {
+                    // Make sure the variable is not already a loop variable in an outer loop
                     if (loopVariables.ContainsKey(for_statement.Identifier.Name))
                     {
                         Error("'" + name + "' is already a loop variable.", for_statement.Identifier);
@@ -184,7 +188,6 @@ namespace Mini_PL
             }
             if (for_statement.From != null && for_statement.From.DataType != int_type)
             {
-                // from must be int
                 Error("Lower boundary must be of int type.", for_statement.From);
             }
             if (for_statement.To != null && for_statement.To.DataType != int_type)
