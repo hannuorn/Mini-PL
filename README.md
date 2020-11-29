@@ -11,5 +11,5 @@ For an user's guide and a full project report, please refer to:
 
 Please find the original Mini-PL specification and the project assignment here:
 
-* [Assignment]("doc/Compilers Project 2020.pdf")
-* [Mini-PL language specification]("doc/Mini pl syntax 2020.pdf")
+* [Assignment](doc/Compilers_Project_2020.pdf)
+* [Mini-PL language specification](doc/Mini-PL_Syntax_2020.pdf)
